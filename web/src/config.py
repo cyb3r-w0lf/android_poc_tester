@@ -29,6 +29,10 @@ class Config:
     MAX_JOBS_PER_SESSION = int(os.environ.get("MAX_JOBS_PER_SESSION", "1"))
     # Max concurrent jobs from one source IP (cookie-independent anti-DoS).
     MAX_JOBS_PER_IP = int(os.environ.get("MAX_JOBS_PER_IP", "2"))
+    # Number of trusted reverse proxies in front of the app. 0 (default) = IGNORE
+    # X-Forwarded-For and use the real peer address, so a player can't spoof XFF to
+    # dodge the per-IP cap. Set to the hop count only if you run behind N trusted proxies.
+    TRUSTED_PROXY_COUNT = int(os.environ.get("TRUSTED_PROXY_COUNT", "0"))
 
     # Session cookie hardening. Behind a TLS proxy set SESSION_COOKIE_SECURE=true.
     SESSION_COOKIE_HTTPONLY = True
@@ -50,4 +54,8 @@ class Config:
     # LAMDA is reached through the device container's socat (port 65000).
     DEVICE_HOST = os.environ.get("DEVICE_HOST", ADB_HOST)
 
-    POW_DIFFICULTY = int(os.environ.get("POW_DIFFICULTY", "250000"))
+    POW_DIFFICULTY = int(os.environ.get("POW_DIFFICULTY", "500"))
+
+    # Admin token for POST /reset/<challenge> (runs the challenge's reset.sh in the emulator guest).
+    # Empty = the /reset route is disabled. Sent as the X-Admin-Token header.
+    ADMIN_TOKEN = os.environ.get("ADMIN_TOKEN", "")

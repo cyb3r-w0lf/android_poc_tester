@@ -8,6 +8,35 @@ starting with `#` are comments — you don't type them.
 
 ---
 
+## Contents
+
+**First time:**
+1. [What this thing is (plain English)](#0-what-this-thing-is-plain-english)
+2. [Prepare the machine (one time)](#1-prepare-the-machine-one-time)
+3. [Get the code and do the first build](#2-get-the-code-and-do-the-first-build)
+4. [Verify it's up](#3-verify-its-up)
+
+**Add a challenge:**
+5. [Add YOUR challenge — full walkthrough (with Python)](#4-add-your-challenge-full-walkthrough)
+6. [Add a challenge the easy way (no Python)](#4-easy-add-a-challenge-the-easy-way-no-python)
+   - [Dynamic flag with `setup.sh` / `reset.sh`](#dynamic-flag-with-setupsh--resetsh-optional) — static vs dynamic flags, per-team flags
+   - [Live view & logs](#live-view)
+7. [If your challenge app talks to a backend server](#5-if-your-challenge-app-talks-to-a-backend-server)
+
+**Run it:**
+8. [How players use it](#6-how-players-use-it)
+9. [Everyday operations](#7-everyday-operations)
+10. [Running one instance per team (CTF deployment)](#8-running-one-instance-per-team-ctf-deployment)
+11. [Troubleshooting (symptom → fix)](#9-troubleshooting-symptom--fix)
+
+**Reference:**
+- [Appendix A — Move podman storage to a bigger disk](#appendix-a--move-podman-storage-to-a-bigger-disk)
+- [Appendix B — Pre-sign an APK yourself](#appendix-b--pre-sign-an-apk-yourself)
+- [Appendix C — Glossary](#appendix-c--glossary)
+- Deeper reference: `../README.md` (architecture, full author device-control API §4.1, security hardening §7, all `.env` settings §8)
+
+---
+
 ## 0. What this thing is (plain English)
 
 - You host an **Android app with a vulnerability** (the "challenge"). Players must exploit it.
@@ -200,6 +229,19 @@ def callback(poc_app, update_status, inputs=None):
     poc_app.start()
 ```
 
+**What you (the author) control on the device, per challenge:** you fully script the run — three
+trusted hooks, none editable by players:
+- **`setup.sh`** (optional) — runs **as root in the emulator** before the POC is installed. Provision
+  state, plant the dynamic `$FLAG`. (See *4-easy → Dynamic flag*.)
+- **`callback(poc_app, update_status, inputs=None, device=None)`** — your Python, runs after the POC
+  installs. `poc_app.start()/.stop()`; `update_status(...)` for live status; `inputs` = what the
+  player typed; `device` = full root device control (`device.execute_script("…")`,
+  `device.application("pkg")`, file push/install, `device.screenshot()`).
+- **`reset.sh`** (optional) — runs as root on admin `POST /reset/<name>` (needs `ADMIN_TOKEN`).
+
+Full reference + the security boundary (no player input ever reaches a guest shell) is in
+`README.md → 4.1 Author device control`.
+
 ### 4e. Rebuild so the new files are baked in
 ```bash
 cd /path/to/Mobile-POC-Tester/android_env
@@ -207,6 +249,86 @@ podman-compose up -d --build
 ```
 Wait for `[i] Device is ready!` again. Your challenge now appears in the dropdown at
 http://localhost:5000.
+
+---
+
+## 4-easy. Add a challenge the easy way (no Python)
+
+Run the wizard on the host (it asks for the name, APK, auto-detects the package, optional backend
+port and player inputs, then writes everything for you):
+
+```bash
+./scripts/add-challenge.sh
+```
+
+Or do it by hand: put the (release, non-debuggable) APK at `device/challenges_apk/<name>.apk` and
+create `web/src/challenges/<name>/challenge.toml`:
+
+```toml
+package_name     = "com.example.chall"   # required
+timeout          = 300                    # optional (s)
+screenshot_delay = 5                      # optional (s)
+
+[backend]                                 # optional; informational (wire it with BACKEND_FORWARDS)
+port = 3014
+
+[[inputs]]                                # optional player inputs
+name = "host"
+label = "Server host"
+type = "text"                             # text|number|password|textarea|select
+default = "10.0.2.2"
+```
+
+With no `client.py`, a default callback just launches the player's POC. If a `client.py` also
+exists in the folder, whatever it defines (including `callback`) wins over the toml.
+
+### Dynamic flag with `setup.sh` / `reset.sh` (optional)
+
+**What this is.** A flag can reach the challenge app two ways:
+- **Baked (static)** — the real flag is compiled into the server APK. Simplest; same flag for
+  everyone; to change it you rebuild the APK. If you do this, skip this whole section.
+- **Dynamic (injected)** — the APK ships with **no** real flag; the server plants it at runtime
+  via `setup.sh`. You set the value once in `.env`, no APK rebuild.
+
+**Why you'd use dynamic flags:** give **each team a different flag** (instance-per-team CTF, §8) so
+a leaked flag can't be shared; rotate the flag without rebuilding; and keep the flag out of the APK
+bytes so players can't just `strings`/decompile it — they must actually exploit the running app.
+
+`web/src/challenges/<name>/setup.sh` runs before every job's POC is installed; `reset.sh` runs on
+`POST /reset/<name>` with header `X-Admin-Token: $ADMIN_TOKEN` (disabled unless `ADMIN_TOKEN` is set).
+The harness prepends `FLAG='<value of CHALLENGE_FLAG_<NAME_UPPER>>'` so your script can use `$FLAG`:
+
+```sh
+# setup.sh
+D=/data/data/com.example.chall/files
+mkdir -p $D && echo "$FLAG" > $D/flag.txt
+chown -R "$(stat -c %u /data/data/com.example.chall)":"$(stat -c %u /data/data/com.example.chall)" $D
+```
+
+**Wire the flag value in (two places — do this for every challenge that uses `$FLAG`).** There is
+no wildcard; each challenge's flag is passed explicitly. For a challenge folder named `myctf` the
+env var is `CHALLENGE_FLAG_MYCTF` (folder name uppercased, non-alphanumerics → `_`):
+
+1. Add the value to `.env`:
+   ```bash
+   CHALLENGE_FLAG_MYCTF=FLAG{the_real_flag}
+   ```
+2. Pass it through in `docker-compose.yml` under the `web:` service `environment:` (copy an
+   existing `CHALLENGE_FLAG_*` line):
+   ```yaml
+       CHALLENGE_FLAG_MYCTF: ${CHALLENGE_FLAG_MYCTF:-}
+   ```
+In an instance-per-team CTF, set `CHALLENGE_FLAG_MYCTF` per spawn (unique flag per team) — see §8.
+
+These scripts are author-provided (baked into the image) and run **as root inside the emulator
+guest only**, never in the container/host. No player input is ever passed to them. Rebuild after
+editing (`podman-compose up -d --build`).
+
+### Live view
+While a job runs, the **Run monitor** has three tabs: **Live** (view-only emulator mirror in a
+phone frame, ~1.5 fps, polled one JPEG at a time from `/frame/<job-id>`, owner-bound, with
+Pause / Fullscreen), **Logs** (per-job logcat, colorized, auto-refreshing, filter / wrap / copy /
+download), and **Result** (the proof screenshot). Players get no device control — view only.
 
 ---
 

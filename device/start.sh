@@ -346,6 +346,14 @@ function start_device() {
   adb shell pm disable-user com.google.android.tts
   adb shell pm disable-user com.google.android.googlequicksearchbox
 
+  echo "[i] Reducing ANR dialogs + animation load..."
+  # Don't pop ANR dialogs for background apps, and kill animations so the
+  # emulator is less likely to stall and raise "isn't responding" under load.
+  adb shell settings put secure anr_show_background 0 2>/dev/null || true
+  adb shell settings put global window_animation_scale 0 2>/dev/null || true
+  adb shell settings put global transition_animation_scale 0 2>/dev/null || true
+  adb shell settings put global animator_duration_scale 0 2>/dev/null || true
+
   echo "[i] Starting backend forwards..."
   start_backend_forwards
 

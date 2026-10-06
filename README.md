@@ -142,6 +142,60 @@ Each challenge = **one baked real-flag APK** + **one plugin folder**.
 
 The folder name, the APK basename, and `PACKAGE_NAME` should refer to the same challenge.
 
+### 4.1 Author device control (per-challenge, scripted)
+
+As a challenge **author** you fully script what happens on the emulator for your challenge.
+Three hooks, all per-challenge, all trusted (baked into the image — never player-editable):
+
+| Hook | When it runs | Runs as | Gets player input? |
+|------|--------------|---------|--------------------|
+| `setup.sh` | once per job, in **INITIALIZING** — after the challenge app is installed, **before** the POC is installed | **root in the guest** (via `device.execute_script`) | **No** — never |
+| `client.py` `callback(...)` | in **RUNNING_POC** — after the POC is installed | Python in the web container, driving the device | Yes — the validated `inputs` dict |
+| `reset.sh` | on demand, `POST /reset/<name>` with `X-Admin-Token` (admin only) | **root in the guest** | **No** — never |
+
+**Lifecycle of one run:**
+`INITIALIZING` (install challenge app → run `setup.sh`) → `INSTALLING_POC` (install player APK) →
+`RUNNING_POC` (`callback`) → `TAKING_SCREENSHOT` (settle delay → dismiss ANR dialogs → screenshot) → `COMPLETED`.
+
+**`callback(poc_app, update_status, inputs=None, device=None)`** — the device-control entry point.
+Parameters are passed by name only if your function declares them (or `**kwargs`), so old
+2-arg callbacks still work:
+- `poc_app` — LAMDA application object for the player's POC: `.start()`, `.stop()`,
+  `.is_installed()`, `.uninstall()`.
+- `update_status(Status.X)` — push a live status to the player's page.
+- `inputs` — dict of the player's validated form fields (may be `{}`). **Only player-controlled
+  data you get.** Treat as untrusted: use as intent extras / config values, never build a
+  guest shell command out of it (see Security below).
+- `device` — the LAMDA device handle for **full scripted control as root in the guest**:
+  - `device.execute_script("<shell>", timeout=...)` — arbitrary root shell in the emulator.
+  - `device.application("<pkg>")` — control any installed app.
+  - `device.upload_file(local, remote)` / `device.install_local_file(remote)` / `device.delete_file(remote)`.
+  - `device.screenshot()` — returns JPEG bytes via `.getvalue()`.
+  - …any other LAMDA device method.
+
+Use `callback` for anything dynamic (launch the POC a specific way, send an intent, poll for a
+result, wait for a UI state, drive the challenge app). Use `setup.sh` for provisioning state the
+app needs **before** the exploit and for planting the **dynamic flag** (below). A challenge with
+no `client.py` uses the built-in `default_callback`, which just does `poc_app.start()` — so a
+`challenge.toml` + `setup.sh` is enough for most challenges, no Python required.
+
+**Dynamic flag (optional).** Alternative to baking the flag into the APK: ship the APK with no
+real flag and have the server inject it at runtime, so you can give each team a unique flag
+(instance-per-team), rotate without rebuilding, and keep the flag out of the APK bytes. Skip this
+if your APK already has the flag baked in. To use it:
+set `CHALLENGE_FLAG_<NAME_UPPER>` in `.env` **and** add a matching
+`CHALLENGE_FLAG_<NAME_UPPER>: ${CHALLENGE_FLAG_<NAME_UPPER>:-}` line to the `web:` service in
+`docker-compose.yml` (no wildcard — one line per challenge; non-alnum → `_`). It is handed to
+that challenge's `setup.sh`/`reset.sh` as the shell variable `$FLAG` (shell-quoted by the harness).
+Write it into the app's private storage / a content provider / wherever the exploit must reach it.
+The flag is **never** sent to the browser or to `callback`.
+
+**Security boundary (enforced, do not weaken):** no player-controlled data (POC APK, its
+filename, its package name, or the `inputs` values) is ever interpolated into a guest shell. Only
+author `setup.sh`/`reset.sh` text and the admin-supplied `$FLAG` (shell-quoted) reach
+`execute_script`. If your `callback` ever needs an input value on the device, pass it as an intent
+extra or write it with a LAMDA file API — never via string-built `execute_script`.
+
 ---
 
 ## 5. Using it (players)
@@ -154,10 +208,16 @@ The folder name, the APK basename, and `PACKAGE_NAME` should refer to the same c
 Rules enforced: `.apk` only, max file size, max queue size, and the POC's package may **not**
 equal the challenge's package (no impersonation). The POC is uninstalled after each run.
 
+**Run monitor UI.** While a job runs the page shows a step progress bar and three tabs:
+- **Live** — a view-only mirror of the emulator (phone frame, ~1.5 fps, Pause / Fullscreen),
+  polling `GET /frame/<job-id>` (one live JPEG; owner-bound). No device control is exposed.
+- **Logs** — the per-job logcat, colorized by level (E/W/I/D), with filter, level filter,
+  wrap, copy, download, and autoscroll. Auto-refreshes every 2 s while the job runs.
+- **Result** — the proof screenshot when `COMPLETED` (click to zoom), or the error if it failed.
+
 **Per-job device logs:** each job captures `adb logcat` filtered to the challenge + POC packages
-(and their pids). The status card shows a **Logs** panel (View / Refresh) once the job finishes,
-served from `GET /logs/<job-id>` (text/plain). Logcat is cleared at the start of each job, and
-captured even if the POC callback errors — useful for debugging a failing exploit.
+(and their pids), served from `GET /logs/<job-id>` (text/plain). Logcat is cleared at the start of
+each job and captured even if the POC callback errors — useful for debugging a failing exploit.
 
 ---
 
@@ -224,6 +284,8 @@ image updated and reset state between runs. Known CTF-acceptable risk.
 | `EGRESS_ALLOW_PORTS` | — | Restrict `EGRESS_ALLOW` to a port/range, e.g. `1024:65535`. Empty = all ports |
 | `EGRESS_DENY_PORTS` | — | Ports blocked even on allowlisted hosts, e.g. `22,3306` |
 | `OPSSCHED_BACKEND` | `http://10.0.2.2:3014` | opsscheduler challenge: admin-fixed backend URL the app fetches |
+| `ADMIN_TOKEN` | — | Enables `POST /reset/<challenge>` (header `X-Admin-Token`); runs the challenge's `reset.sh` in the emulator guest. Empty = disabled |
+| `CHALLENGE_FLAG_<NAME>` | — | Dynamic flag passed as `$FLAG` to that challenge's `setup.sh`/`reset.sh` (author scripts, run as root in the guest only) |
 | `ADB_HOST` | `device` | Hostname of the device container (LAMDA target) |
 | `MAX_MEMORY` | `4096` | Emulator RAM (MB) |
 | `SU_NAME` | random | Name su is renamed to (set by `run.sh`) |

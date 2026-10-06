@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" class="dark">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -10,60 +10,93 @@
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
     <script>
         tailwind.config = {
-            theme: {
-                extend: {
-                    colors: {
-                        primary: '#2563eb',
-                        secondary: '#64748b',
-                        success: '#10b981',
-                        warning: '#f59e0b',
-                        danger: '#ef4444',
-                    }
-                }
-            }
+            darkMode: 'class',
+            theme: { extend: {
+                colors: {
+                    ink:      '#0b0f17',
+                    panel:    '#121826',
+                    panel2:   '#1a2234',
+                    edge:     '#273349',
+                    primary:  '#6366f1',
+                    accent:   '#22d3ee',
+                    success:  '#10b981',
+                    warning:  '#f59e0b',
+                    danger:   '#ef4444',
+                },
+                fontFamily: { mono: ['ui-monospace','SFMono-Regular','Menlo','Consolas','monospace'] }
+            } }
         }
     </script>
+    <style>
+        body { background:
+            radial-gradient(900px 500px at 15% -10%, rgba(99,102,241,.14), transparent 60%),
+            radial-gradient(900px 500px at 110% 10%, rgba(34,211,238,.10), transparent 55%),
+            #0b0f17; }
+        .card { background: rgba(18,24,38,.85); border:1px solid #273349; backdrop-filter: blur(6px); }
+        .scroll-thin::-webkit-scrollbar { width:10px; height:10px; }
+        .scroll-thin::-webkit-scrollbar-thumb { background:#2b3650; border-radius:8px; border:2px solid #121826; }
+        .scroll-thin::-webkit-scrollbar-track { background:transparent; }
+        /* phone bezel */
+        .bezel { background:#000; border:10px solid #0f1522; border-radius:34px;
+                 box-shadow: 0 0 0 1px #273349, 0 20px 50px rgba(0,0,0,.6); position:relative; }
+        .bezel::before { content:''; position:absolute; top:10px; left:50%; transform:translateX(-50%);
+                 width:120px; height:20px; background:#0f1522; border-radius:0 0 14px 14px; z-index:3; }
+        .live-dot { width:8px;height:8px;border-radius:9999px;background:#ef4444;box-shadow:0 0 0 0 rgba(239,68,68,.7);animation:pulse 1.4s infinite; }
+        @keyframes pulse { 0%{box-shadow:0 0 0 0 rgba(239,68,68,.7)} 70%{box-shadow:0 0 0 8px rgba(239,68,68,0)} 100%{box-shadow:0 0 0 0 rgba(239,68,68,0)} }
+        /* logcat */
+        .log-line { display:flex; gap:8px; padding:1px 10px; white-space:pre; }
+        .log-line:hover { background:rgba(255,255,255,.03); }
+        .log-wrap .log-line { white-space:pre-wrap; word-break:break-word; }
+        .lv-E{color:#fca5a5} .lv-W{color:#fcd34d} .lv-I{color:#86efac} .lv-D{color:#93c5fd} .lv-V{color:#9ca3af} .lv-F{color:#f87171;font-weight:600}
+        .log-badge{flex:0 0 auto;width:14px;text-align:center;font-weight:700;opacity:.9}
+        .chip{font-size:11px;padding:2px 8px;border-radius:9999px;border:1px solid #273349}
+        .step-dot{width:26px;height:26px;border-radius:9999px;display:flex;align-items:center;justify-content:center;font-size:12px}
+        .fade-in{animation:fade .25s ease}
+        @keyframes fade{from{opacity:0;transform:translateY(4px)}to{opacity:1}}
+    </style>
 </head>
-<body class="bg-gray-50 min-h-screen">
+<body class="min-h-screen text-slate-200">
     <!-- Header -->
-    <header class="bg-white shadow-sm border-b">
+    <header class="sticky top-0 z-40 border-b border-edge bg-ink/80 backdrop-blur">
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div class="flex justify-between items-center h-16">
-                <div class="flex items-center">
-                    <i class="fas fa-mobile-alt text-primary text-2xl mr-3"></i>
-                    <h1 class="text-xl font-bold text-gray-900">Android CTF POC Runner</h1>
-                </div>
-                <div class="flex items-center space-x-4">
-                    <div class="text-sm text-gray-600">
-                        <i class="fas fa-clock mr-1"></i>
-                        <span id="currentTime"></span>
+                <div class="flex items-center gap-3">
+                    <div class="w-9 h-9 rounded-xl bg-gradient-to-br from-primary to-accent flex items-center justify-center shadow-lg">
+                        <i class="fas fa-mobile-screen-button text-white"></i>
                     </div>
-                    <div class="flex items-center space-x-2">
-                        <div class="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
-                        <span class="text-sm text-gray-600">Online</span>
+                    <div>
+                        <h1 class="text-base font-bold text-white leading-tight">Android CTF POC Runner</h1>
+                        <p class="text-[11px] text-slate-400 -mt-0.5">upload exploit · watch it run · grab the flag</p>
+                    </div>
+                </div>
+                <div class="flex items-center gap-4">
+                    <span id="deviceStatus" class="chip text-slate-300 hidden sm:inline-flex items-center gap-2">
+                        <span class="w-2 h-2 rounded-full bg-slate-500"></span><span>device</span>
+                    </span>
+                    <div class="flex items-center gap-2 text-sm text-slate-400">
+                        <span id="connDot" class="w-2 h-2 rounded-full bg-slate-500"></span>
+                        <span id="connText">connecting</span>
                     </div>
                 </div>
             </div>
         </div>
     </header>
 
-    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
-            <!-- Main Upload Section -->
-            <div class="lg:col-span-2">
-                <div class="bg-white rounded-lg shadow-sm border">
-                    <div class="p-6 border-b">
-                        <h2 class="text-lg font-semibold text-gray-900">Upload POC</h2>
-                        <p class="text-sm text-gray-600 mt-1">Upload your proof of concept APK file for testing.</p>
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+        <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+
+            <!-- LEFT: upload -->
+            <div class="lg:col-span-4 space-y-6">
+                <div class="card rounded-2xl">
+                    <div class="px-5 py-4 border-b border-edge flex items-center gap-2">
+                        <i class="fas fa-rocket text-primary"></i>
+                        <h2 class="font-semibold text-white">Submit POC</h2>
                     </div>
-                    
-                    <div class="p-6">
-                        <!-- Challenge Selection -->
-                        <div class="mb-6">
-                            <label class="block text-sm font-medium text-gray-700 mb-2">
-                                <i class="fas fa-flag mr-2"></i>Challenge
-                            </label>
-                            <select id="challengeSelect" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent">
+                    <div class="p-5 space-y-5">
+                        <!-- challenge -->
+                        <div>
+                            <label class="block text-xs font-medium text-slate-400 mb-1.5 uppercase tracking-wide">Challenge</label>
+                            <select id="challengeSelect" class="w-full bg-panel2 border border-edge rounded-lg px-3 py-2.5 text-sm focus:ring-2 focus:ring-primary focus:outline-none">
                                 <option value="" disabled selected>Select a challenge</option>
                             {% for challenge in challenges %}
                                 <option value="{{ challenge }}">{{ challenge }}</option>
@@ -71,173 +104,183 @@
                             </select>
                         </div>
 
-                        <!-- Per-challenge inputs (admin-defined) -->
-                        <div id="challengeInputs" class="mb-6 space-y-3 hidden"></div>
+                        <div id="challengeInputs" class="space-y-3 hidden"></div>
 
                         {% if enable_pow %}
-                        <!-- Proof of Work Section -->
-                        <div class="mb-6 p-4 bg-gray-50 rounded-lg">
-                            <label class="block text-sm font-medium text-gray-700 mb-2">
-                                <i class="fas fa-shield-alt mr-2"></i>Proof of Work
+                        <div class="rounded-lg border border-edge bg-panel2/60 p-3">
+                            <label class="block text-xs font-medium text-slate-400 mb-2 uppercase tracking-wide">
+                                <i class="fas fa-shield-halved mr-1"></i>Proof of Work
                             </label>
-                            <div class="mb-3">
-                                <div class="flex items-center bg-gray-800 rounded">
-                                    <div class="flex-1 text-green-400 p-3 font-mono text-sm overflow-x-auto" id="powCommand">
-                                        {{ pow_cmd }}
-                                    </div>
-                                    <button onclick="copyToClipboard(`{{ pow_cmd }}`)" id="powCopyButton"
-                                            class="px-3 py-3 text-gray-400 hover:text-white transition-colors"
-                                            title="Copy command">
-                                        <i class="fas fa-copy"></i>
-                                    </button>
-                                </div>
+                            <div class="flex items-stretch bg-black/60 rounded-lg border border-edge mb-2">
+                                <code class="flex-1 text-accent px-3 py-2 font-mono text-xs overflow-x-auto scroll-thin" id="powCommand">{{ pow_cmd }}</code>
+                                <button onclick="copyToClipboard(document.getElementById('powCommand').innerText)" id="powCopyButton"
+                                        class="px-3 text-slate-400 hover:text-white border-l border-edge" title="Copy"><i class="fas fa-copy"></i></button>
                             </div>
-                            <input type="text" id="powSolution" placeholder="Enter PoW solution here" 
-                                   class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent">
+                            <input type="text" id="powSolution" placeholder="Paste PoW solution"
+                                   class="w-full bg-panel2 border border-edge rounded-lg px-3 py-2 text-sm font-mono focus:ring-2 focus:ring-primary focus:outline-none">
                         </div>
                         {% endif %}
 
-                        <!-- File Upload Section -->
-                        <div class="mb-6">
-                            <label class="block text-sm font-medium text-gray-700 mb-2">
-                                <i class="fas fa-file-upload mr-2"></i>APK File
-                            </label>
-                            
-                            <!-- Drag & Drop Area -->
-                            <div id="dropZone" class="border-2 border-dashed border-gray-300 rounded-lg p-8 text-center hover:border-primary transition-colors cursor-pointer">
-                                <div id="dropZoneContent">
-                                    <i class="fas fa-cloud-upload-alt text-4xl text-gray-400 mb-4"></i>
-                                    <p class="text-lg text-gray-600 mb-2">Drag & drop your APK file here</p>
-                                    <p class="text-sm text-gray-500 mb-4">or click to browse</p>                                    
-                                </div>
+                        <!-- file -->
+                        <div>
+                            <label class="block text-xs font-medium text-slate-400 mb-1.5 uppercase tracking-wide">APK file</label>
+                            <div id="dropZone" class="border-2 border-dashed border-edge rounded-xl p-6 text-center hover:border-primary hover:bg-primary/5 transition cursor-pointer">
+                                <i class="fas fa-cloud-arrow-up text-3xl text-slate-500 mb-2"></i>
+                                <p class="text-sm text-slate-300">Drag &amp; drop <span class="text-slate-500">or click to browse</span></p>
+                                <p class="text-[11px] text-slate-500 mt-1">.apk only</p>
                             </div>
                             <input type="file" id="fileInput" accept=".apk" class="hidden">
-                            
-                            <!-- File Info -->
-                            <div id="fileInfo" class="mt-4 hidden">
-                                <div class="flex items-center justify-between p-3 bg-blue-50 rounded-lg">
-                                    <div class="flex items-center">
-                                        <i class="fas fa-file-archive text-blue-500 mr-3"></i>
-                                        <div>
-                                            <p class="font-medium text-gray-900" id="fileName"></p>
-                                            <p class="text-sm text-gray-600" id="fileSize"></p>
+                            <div id="fileInfo" class="mt-3 hidden">
+                                <div class="flex items-center justify-between p-3 bg-primary/10 border border-primary/30 rounded-lg">
+                                    <div class="flex items-center gap-3 min-w-0">
+                                        <i class="fas fa-file-zipper text-primary"></i>
+                                        <div class="min-w-0">
+                                            <p class="font-medium text-sm text-white truncate" id="fileName"></p>
+                                            <p class="text-xs text-slate-400" id="fileSize"></p>
                                         </div>
                                     </div>
-                                    <button onclick="clearFile()" class="text-red-500 hover:text-red-700">
-                                        <i class="fas fa-times"></i>
-                                    </button>
+                                    <button onclick="clearFile()" class="text-slate-400 hover:text-danger"><i class="fas fa-times"></i></button>
                                 </div>
                             </div>
                         </div>
 
-                        <!-- Submit Button -->
-                        <div class="flex justify-end">
-                            <button id="submitButton" onclick="submitPOC()" disabled
-                                    class="bg-primary text-white px-6 py-3 rounded-lg hover:bg-primary-dark transition-colors disabled:bg-gray-300 disabled:cursor-not-allowed flex items-center">
-                                <i class="fas fa-rocket mr-2"></i>
-                                <span id="submitText">Submit POC</span>
-                            </button>
-                        </div>
+                        <button id="submitButton" onclick="submitPOC()" disabled
+                                class="w-full bg-primary hover:bg-indigo-500 text-white px-6 py-3 rounded-xl font-semibold transition disabled:bg-slate-700 disabled:text-slate-500 disabled:cursor-not-allowed flex items-center justify-center gap-2">
+                            <i class="fas fa-play"></i><span id="submitText">Run POC</span>
+                        </button>
                     </div>
+                </div>
+
+                <!-- queue -->
+                <div class="card rounded-2xl">
+                    <div class="px-5 py-4 border-b border-edge flex items-center justify-between">
+                        <div class="flex items-center gap-2"><i class="fas fa-list-ol text-slate-400"></i><h3 class="font-semibold text-white">Queue</h3></div>
+                        <span id="queueSize" class="chip bg-panel2 text-slate-300">0 jobs</span>
+                    </div>
+                    <div class="p-5 text-sm text-slate-400">Jobs run one at a time on a shared device. Live view and logs update automatically.</div>
                 </div>
             </div>
 
-            <!-- Status & Queue Section -->
-            <div class="lg:col-span-1">
-                <!-- Current Status -->
-                <div class="bg-white rounded-lg shadow-sm border mb-6">
-                    <div class="p-6 border-b">
-                        <h3 class="text-lg font-semibold text-gray-900">Status</h3>
+            <!-- RIGHT: monitor -->
+            <div class="lg:col-span-8">
+                <div class="card rounded-2xl overflow-hidden">
+                    <!-- status strip -->
+                    <div class="px-5 py-4 border-b border-edge">
+                        <div class="flex items-center justify-between mb-3">
+                            <div class="flex items-center gap-2">
+                                <i class="fas fa-gauge-high text-accent"></i>
+                                <h2 class="font-semibold text-white">Run monitor</h2>
+                            </div>
+                            <span id="jobId" class="chip bg-panel2 text-slate-400 font-mono hidden"></span>
+                        </div>
+
+                        <!-- stepper -->
+                        <div id="stepper" class="hidden">
+                            <div class="flex items-center justify-between gap-1" id="stepRow"></div>
+                            <div class="mt-2 flex items-center justify-between text-xs">
+                                <span id="statusText" class="text-slate-300">—</span>
+                                <span id="progressPercent" class="text-slate-500">0%</span>
+                            </div>
+                        </div>
+
+                        <!-- idle -->
+                        <div id="initialState" class="py-10 text-center">
+                            <i class="fas fa-mobile-screen text-slate-600 text-4xl mb-3"></i>
+                            <p class="text-slate-300 font-medium">No active job</p>
+                            <p class="text-sm text-slate-500">Submit a POC to watch it run live.</p>
+                        </div>
+                        <div id="loadingState" class="hidden py-10 text-center">
+                            <div class="animate-spin rounded-full h-10 w-10 border-2 border-slate-600 border-t-primary mx-auto mb-3"></div>
+                            <p class="text-slate-400 text-sm">Loading job status…</p>
+                        </div>
                     </div>
-                    <div class="p-6">
-                        <div id="statusSection" class="hidden">
-                            <div class="flex items-center justify-between mb-4">
-                                <span class="text-sm font-medium text-gray-700">Current Job</span>
-                                <span id="jobId" class="text-xs bg-gray-100 px-2 py-1 rounded"></span>
-                            </div>
-                            
-                            <!-- Progress Bar -->
-                            <div class="mb-4">
-                                <div class="flex justify-between text-sm text-gray-600 mb-1">
-                                    <span id="statusText">Connecting...</span>
-                                    <span id="progressPercent">0%</span>
-                                </div>
-                                <div class="w-full bg-gray-200 rounded-full h-2">
-                                    <div id="progressBar" class="bg-primary h-2 rounded-full transition-all duration-300" style="width: 0%"></div>
-                                </div>
-                            </div>
 
-                            <!-- Status Details -->
-                            <div id="statusDetails" class="space-y-2">
-                                <!-- Status items will be added here -->
-                            </div>
+                    <!-- tabs + body -->
+                    <div id="monitorBody" class="hidden">
+                        <div class="flex items-center gap-1 px-3 pt-3 border-b border-edge bg-panel2/40">
+                            <button data-tab="live"   onclick="switchTab('live')"   class="tab-btn px-4 py-2 text-sm rounded-t-lg font-medium"><i class="fas fa-circle-play mr-1.5"></i>Live</button>
+                            <button data-tab="logs"   onclick="switchTab('logs')"   class="tab-btn px-4 py-2 text-sm rounded-t-lg font-medium"><i class="fas fa-terminal mr-1.5"></i>Logs <span id="logCount" class="text-[10px] text-slate-500"></span></button>
+                            <button data-tab="result" onclick="switchTab('result')" class="tab-btn px-4 py-2 text-sm rounded-t-lg font-medium"><i class="fas fa-image mr-1.5"></i>Result</button>
+                        </div>
 
-                            <!-- Error Display -->
-                            <div id="errorDisplay" class="hidden mt-4 p-3 bg-red-50 border border-red-200 rounded-lg">
-                                <div class="flex items-center">
-                                    <i class="fas fa-exclamation-triangle text-red-500 mr-2"></i>
-                                    <span class="text-red-700 font-medium">Error</span>
-                                </div>
-                                <p id="errorMessage" class="text-red-600 text-sm mt-1"></p>
-                            </div>
-
-                            <!-- Success Display -->
-                            <div id="successDisplay" class="hidden mt-4 p-3 bg-green-50 border border-green-200 rounded-lg">
-                                <div class="flex items-center justify-between">
-                                    <div class="flex items-center">
-                                        <i class="fas fa-check-circle text-green-500 mr-2"></i>
-                                        <span class="text-green-700 font-medium">Completed</span>
-                                    </div>
-                                    <button onclick="viewScreenshot()" class="text-green-600 hover:text-green-800 text-sm">
-                                        <i class="fas fa-image mr-1"></i>View Screenshot
-                                    </button>
-                                </div>
-                                <p class="text-green-600 text-sm mt-1">POC testing completed successfully.</p>
-                                <div class="flex items-center justify-between mt-2 pt-2 border-t border-green-200">
-                                    <span class="text-green-600 text-sm">Time taken:</span>
-                                    <span id="processingTime" class="text-green-700 font-medium text-sm">-</span>
-                                </div>
-                            </div>
-
-                            <!-- Device Logs (challenge + POC) -->
-                            <div id="logsDisplay" class="hidden mt-4">
-                                <div class="flex items-center justify-between mb-1">
-                                    <span class="text-sm font-medium text-gray-700"><i class="fas fa-terminal mr-1"></i>Device logs (challenge + POC)</span>
-                                    <div class="space-x-3">
-                                        <button onclick="refreshLogs()" class="text-primary hover:underline text-sm"><i class="fas fa-rotate mr-1"></i>Refresh</button>
-                                        <button onclick="toggleLogs()" id="logsToggleBtn" class="text-primary hover:underline text-sm">View logs</button>
+                        <!-- LIVE -->
+                        <div id="tab-live" class="tab-pane p-5">
+                            <div class="flex flex-col items-center">
+                                <div class="bezel w-[270px] max-w-full p-2 pt-5">
+                                    <div class="relative rounded-[22px] overflow-hidden bg-black aspect-[9/19.5] flex items-center justify-center">
+                                        <img id="liveImage" src="" alt="live" class="w-full h-full object-contain">
+                                        <div id="liveIdle" class="absolute inset-0 flex flex-col items-center justify-center text-slate-500 text-sm gap-2">
+                                            <i class="fas fa-satellite-dish text-2xl"></i><span>waiting for frames…</span>
+                                        </div>
+                                        <div id="liveBadge" class="absolute top-2 right-2 hidden items-center gap-1.5 bg-black/70 px-2 py-1 rounded-full text-[11px] font-semibold text-white">
+                                            <span class="live-dot"></span>LIVE
+                                        </div>
                                     </div>
                                 </div>
-                                <pre id="logsContent" class="hidden bg-gray-900 text-green-300 text-xs p-3 rounded-lg overflow-auto max-h-64 whitespace-pre-wrap">Loading…</pre>
+                                <div class="mt-4 flex items-center gap-2">
+                                    <button onclick="toggleLive()" id="liveToggleBtn" class="chip bg-panel2 hover:bg-edge text-slate-200"><i class="fas fa-pause mr-1"></i>Pause</button>
+                                    <button onclick="liveFullscreen()" class="chip bg-panel2 hover:bg-edge text-slate-200"><i class="fas fa-expand mr-1"></i>Fullscreen</button>
+                                    <span id="liveFps" class="chip text-slate-500">—</span>
+                                </div>
+                                <p class="text-[11px] text-slate-500 mt-2">View-only mirror · ~1.5 fps · no device control</p>
                             </div>
                         </div>
 
-                        <!-- Loading State -->
-                        <div id="loadingState" class="hidden text-center py-8">
-                            <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
-                            <p class="text-gray-600 font-medium">Loading status...</p>
-                            <p class="text-sm text-gray-400 mt-1">Connecting to the server...</p>
+                        <!-- LOGS -->
+                        <div id="tab-logs" class="tab-pane hidden">
+                            <div class="flex flex-wrap items-center gap-2 px-4 py-2.5 border-b border-edge bg-panel2/40">
+                                <div class="relative flex-1 min-w-[160px]">
+                                    <i class="fas fa-magnifying-glass absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-500 text-xs"></i>
+                                    <input id="logFilter" oninput="renderLogs()" placeholder="filter lines…"
+                                           class="w-full bg-black/40 border border-edge rounded-lg pl-7 pr-2 py-1.5 text-xs font-mono focus:ring-1 focus:ring-primary focus:outline-none">
+                                </div>
+                                <select id="logLevel" onchange="renderLogs()" class="bg-black/40 border border-edge rounded-lg px-2 py-1.5 text-xs">
+                                    <option value="">All levels</option>
+                                    <option value="E">Error</option>
+                                    <option value="W">Warn+</option>
+                                    <option value="I">Info+</option>
+                                </select>
+                                <button onclick="toggleAutoLogs()" id="autoLogBtn" class="chip bg-panel2 hover:bg-edge text-slate-200"><i class="fas fa-rotate mr-1"></i>Auto</button>
+                                <button onclick="toggleWrap()"     id="wrapBtn"    class="chip bg-panel2 hover:bg-edge text-slate-200"><i class="fas fa-text-width mr-1"></i>Wrap</button>
+                                <button onclick="refreshLogs()"                    class="chip bg-panel2 hover:bg-edge text-slate-200"><i class="fas fa-arrows-rotate mr-1"></i>Reload</button>
+                                <button onclick="copyLogs()"                       class="chip bg-panel2 hover:bg-edge text-slate-200"><i class="fas fa-copy mr-1"></i>Copy</button>
+                                <button onclick="downloadLogs()"                   class="chip bg-panel2 hover:bg-edge text-slate-200"><i class="fas fa-download mr-1"></i>Save</button>
+                            </div>
+                            <div id="logsContent" class="log-wrap font-mono text-[12px] leading-5 bg-[#0a0e16] h-[460px] overflow-auto scroll-thin py-2">
+                                <div class="text-slate-600 px-4 py-6 text-center text-sm">No logs yet.</div>
+                            </div>
+                            <div class="flex items-center justify-between px-4 py-1.5 border-t border-edge text-[11px] text-slate-500">
+                                <span id="logStat">0 lines</span>
+                                <label class="flex items-center gap-1.5 cursor-pointer select-none">
+                                    <input type="checkbox" id="autoScroll" checked class="accent-primary"> autoscroll
+                                </label>
+                            </div>
                         </div>
 
-                        <!-- Initial State -->
-                        <div id="initialState" class="text-center py-8">
-                            <i class="fas fa-upload text-gray-300 text-4xl mb-4"></i>
-                            <p class="text-gray-500">No active jobs</p>
-                            <p class="text-sm text-gray-400">Upload a POC to get started</p>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Queue Overview -->
-                <div class="bg-white rounded-lg shadow-sm border">
-                    <div class="p-6 border-b">
-                        <h3 class="text-lg font-semibold text-gray-900">Queue Overview</h3>
-                    </div>
-                    <div class="p-6">
-                        <div class="space-y-4">
-                            <div class="flex justify-between items-center">
-                                <span class="text-sm text-gray-600">Queue Size</span>
-                                <span id="queueSize" class="font-medium">0</span>
+                        <!-- RESULT -->
+                        <div id="tab-result" class="tab-pane hidden p-5">
+                            <div id="resultPending" class="py-16 text-center text-slate-500">
+                                <i class="fas fa-hourglass-half text-3xl mb-3"></i>
+                                <p>Screenshot appears here when the run completes.</p>
+                            </div>
+                            <div id="resultReady" class="hidden">
+                                <div id="successBanner" class="hidden mb-4 flex items-center gap-3 p-3 rounded-lg bg-success/10 border border-success/30">
+                                    <i class="fas fa-circle-check text-success text-lg"></i>
+                                    <div class="flex-1">
+                                        <p class="text-success font-semibold text-sm">Run completed</p>
+                                        <p class="text-xs text-slate-400">Finished in <span id="processingTime">—</span></p>
+                                    </div>
+                                    <button onclick="openScreenshot()" class="chip bg-panel2 hover:bg-edge text-slate-200"><i class="fas fa-expand mr-1"></i>Zoom</button>
+                                </div>
+                                <div id="errorBanner" class="hidden mb-4 flex items-start gap-3 p-3 rounded-lg bg-danger/10 border border-danger/30">
+                                    <i class="fas fa-triangle-exclamation text-danger text-lg mt-0.5"></i>
+                                    <div><p class="text-danger font-semibold text-sm">Run failed</p><p id="errorMessage" class="text-xs text-slate-400 mt-0.5"></p></div>
+                                </div>
+                                <div class="flex justify-center">
+                                    <div class="bezel w-[260px] max-w-full p-2 pt-5">
+                                        <img id="resultImage" src="" alt="result" class="w-full rounded-[22px] bg-black">
+                                    </div>
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -246,441 +289,336 @@
         </div>
     </div>
 
-    <!-- Screenshot Modal -->
-    <div id="screenshotModal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 hidden">
-        <div class="bg-white rounded-lg max-w-4xl max-h-screen overflow-hidden">
-            <div class="p-4 border-b flex justify-between items-center">
-                <h3 class="text-lg font-semibold">Screenshot</h3>
-                <button onclick="closeScreenshotModal()" class="text-gray-500 hover:text-gray-700">
-                    <i class="fas fa-times text-xl"></i>
-                </button>
-            </div>
-            <div class="p-4">
-                <img id="screenshotImage" src="" alt="POC Screenshot" class="max-w-full max-h-96 mx-auto">
-            </div>
+    <!-- screenshot modal -->
+    <div id="screenshotModal" class="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-50 hidden p-4">
+        <div class="relative max-w-3xl w-full">
+            <button onclick="closeScreenshotModal()" class="absolute -top-10 right-0 text-slate-300 hover:text-white"><i class="fas fa-times text-2xl"></i></button>
+            <img id="screenshotImage" src="" alt="screenshot" class="max-h-[85vh] mx-auto rounded-xl border border-edge">
         </div>
     </div>
 
-    <!-- Toast Notifications -->
-    <div id="toastContainer" class="fixed top-4 right-4 z-50 space-y-2">
-        <!-- Toasts will be added here -->
-    </div>
+    <div id="toastContainer" class="fixed top-4 right-4 z-50 space-y-2"></div>
 
 <script>
-        let currentJobId = null;
-        let selectedFile = null;
-        let socket = null;
-        let isLoadingFromUrl = false;
+    let currentJobId = null, selectedFile = null, socket = null, isLoadingFromUrl = false;
+    let activeTab = 'live';
+    const POW_ENABLED = {{ 'true' if enable_pow else 'false' }};
 
-        function getUrlParameter(name) {
-            return new URLSearchParams(window.location.search).get(name);
-        }
+    const STEPS = [
+        ['PENDING_QUEUE','Queued','fa-clock'],
+        ['INITIALIZING','Init','fa-gear'],
+        ['INSTALLING_POC','Install','fa-box-open'],
+        ['RUNNING_CHALLENGE','Challenge','fa-flag'],
+        ['RUNNING_POC','Exploit','fa-bolt'],
+        ['TAKING_SCREENSHOT','Capture','fa-camera'],
+        ['COMPLETED','Done','fa-check'],
+    ];
+    const STATUS_MSG = {
+        PENDING_QUEUE:'Waiting in queue…', INITIALIZING:'Initializing device…',
+        INSTALLING_POC:'Installing your POC…', RUNNING_CHALLENGE:'Launching challenge app…',
+        RUNNING_POC:'Running your exploit…', TAKING_SCREENSHOT:'Capturing result…',
+        COMPLETED:'Completed successfully', ERROR:'Run failed'
+    };
+    const PROGRESS = {PENDING_QUEUE:5,INITIALIZING:18,INSTALLING_POC:35,RUNNING_CHALLENGE:55,RUNNING_POC:78,TAKING_SCREENSHOT:92,COMPLETED:100,ERROR:100};
+    const ACTIVE = ['PENDING_QUEUE','INITIALIZING','INSTALLING_POC','RUNNING_CHALLENGE','RUNNING_POC','TAKING_SCREENSHOT'];
 
-        function updateUrlParameter(key, value) {
-            const url = new URL(window.location);
-            value ? url.searchParams.set(key, value) : url.searchParams.delete(key);
-            window.history.replaceState({}, '', url);
-        }
+    const q = s => document.querySelector(s);
+    const getUrlParameter = n => new URLSearchParams(location.search).get(n);
+    function updateUrlParameter(k,v){ const u=new URL(location); v?u.searchParams.set(k,v):u.searchParams.delete(k); history.replaceState({},'',u); }
 
-        $(document).ready(function() {
-            initializeDropZone();
-            initializeFormValidation();
-            initializeWebSocket();
-            updateCurrentTime();
-            setInterval(updateCurrentTime, 1000);
-            
-            const existingId = getUrlParameter('id');
-            if (existingId) {
-                currentJobId = existingId;
-                isLoadingFromUrl = true;
-                showLoadingState();
+    $(document).ready(function(){
+        buildStepper();
+        initializeDropZone();
+        initializeFormValidation();
+        initializeWebSocket();
+        pollDeviceStatus(); setInterval(pollDeviceStatus, 15000);
+        setTabStyles();
+        const existingId = getUrlParameter('id');
+        if (existingId){ currentJobId = existingId; isLoadingFromUrl = true; showLoadingState(); }
+    });
+
+    /* ---------- websocket ---------- */
+    function initializeWebSocket(){
+        socket = io({ transports:['polling'] });
+        socket.on('connect', ()=>{ setConn(true); if(currentJobId){ joinQueueRoom(currentJobId); requestCurrentStatus(currentJobId);} });
+        socket.on('disconnect', ()=> setConn(false));
+        socket.on('status_update', updateStatusDisplay);
+        socket.on('queue_stats', s => q('#queueSize').textContent = (s.queue_size||0)+' jobs');
+        socket.on('error', function(d){
+            showToast(d.message || 'Server error', 'error');
+            if (d.message === 'Queue item not found' && currentJobId){
+                updateUrlParameter('id', null); currentJobId=null; isLoadingFromUrl=false;
+                showIdle();
             }
         });
+    }
+    function setConn(ok){ q('#connDot').className = 'w-2 h-2 rounded-full '+(ok?'bg-success animate-pulse':'bg-danger'); q('#connText').textContent = ok?'live':'offline'; }
+    function joinQueueRoom(id){ socket?.emit('join_queue',{queue_id:id}); }
+    function leaveQueueRoom(id){ socket?.emit('leave_queue',{queue_id:id}); }
+    function requestCurrentStatus(id){ socket?.emit('get_status',{queue_id:id}); }
 
-        function initializeWebSocket() {
-            // Polling transport only: the production server (waitress) serves Socket.IO
-            // over HTTP long-polling; native WebSocket isn't available there.
-            socket = io({ transports: ['polling'] });
-            
-            socket.on('connect', function() {
-                console.log('Connected to server');
-                
-                if (currentJobId) {
-                    joinQueueRoom(currentJobId);
-                    requestCurrentStatus(currentJobId);
-                }
-            });
-            
-            socket.on('disconnect', () => console.log('Disconnected from server'));
-            socket.on('status_update', updateStatusDisplay);
-            socket.on('queue_stats', updateQueueStats);
-            
-            socket.on('error', function(data) {
-                showToast(data.message || 'WebSocket error occurred', 'error');
-                
-                if (data.message === 'Queue item not found' && currentJobId) {
-                    updateUrlParameter('id', null);
-                    currentJobId = null;
-                    isLoadingFromUrl = false;
-                    $('#statusSection').addClass('hidden');
-                    $('#loadingState').addClass('hidden');
-                    $('#initialState').removeClass('hidden');
-                }
-            });
+    function pollDeviceStatus(){
+        fetch('/device_status').then(r=>r.ok?r.json():null).then(d=>{
+            if(!d) return;
+            const ok = !!d.device_ready;
+            const el = q('#deviceStatus'); el.classList.remove('hidden');
+            el.querySelector('span').className = 'w-2 h-2 rounded-full '+(ok?'bg-success':'bg-warning');
+            el.querySelector('span:last-child').textContent = ok?'device ready':'device busy';
+        }).catch(()=>{});
+    }
+
+    /* ---------- stepper ---------- */
+    function buildStepper(){
+        const row = q('#stepRow'); row.innerHTML='';
+        STEPS.forEach((s,i)=>{
+            row.insertAdjacentHTML('beforeend',
+              `<div class="flex items-center flex-1 ${i===STEPS.length-1?'flex-none':''}" data-step="${s[0]}">
+                 <div class="flex flex-col items-center">
+                   <div class="step-dot bg-panel2 text-slate-500 border border-edge" data-dot><i class="fas ${s[2]}"></i></div>
+                   <span class="text-[10px] mt-1 text-slate-500" data-lbl>${s[1]}</span>
+                 </div>
+                 ${i===STEPS.length-1?'':'<div class="flex-1 h-0.5 mx-1 bg-edge rounded" data-bar></div>'}
+               </div>`);
+        });
+    }
+    function paintStepper(status){
+        const idx = STEPS.findIndex(s=>s[0]===status);
+        const err = status==='ERROR';
+        STEPS.forEach((s,i)=>{
+            const node = q(`[data-step="${s[0]}"]`); if(!node) return;
+            const dot = node.querySelector('[data-dot]'), lbl=node.querySelector('[data-lbl]'), bar=node.querySelector('[data-bar]');
+            const done = idx>=0 && i<idx, cur = idx>=0 && i===idx;
+            dot.className = 'step-dot border '+(done?'bg-success/20 text-success border-success/40':cur?'bg-primary text-white border-primary':'bg-panel2 text-slate-500 border-edge');
+            if(cur && err){ dot.className='step-dot border bg-danger text-white border-danger'; }
+            lbl.className = 'text-[10px] mt-1 '+(done||cur?'text-slate-300':'text-slate-500');
+            if(bar) bar.className = 'flex-1 h-0.5 mx-1 rounded '+(done?'bg-success/50':'bg-edge');
+        });
+    }
+
+    /* ---------- dropzone / file ---------- */
+    function initializeDropZone(){
+        const dz=$('#dropZone'), fi=$('#fileInput');
+        dz.on('click',()=>fi.click());
+        dz.on('dragover',function(e){e.preventDefault();$(this).addClass('border-primary bg-primary/10');});
+        dz.on('dragleave',function(e){e.preventDefault();$(this).removeClass('border-primary bg-primary/10');});
+        dz.on('drop',function(e){e.preventDefault();$(this).removeClass('border-primary bg-primary/10');const f=e.originalEvent.dataTransfer.files;if(f.length)handleFile(f[0]);});
+        fi.on('change',function(){if(this.files.length)handleFile(this.files[0]);});
+    }
+    function handleFile(file){
+        if(!file.name.toLowerCase().endsWith('.apk')){ showToast('Only .apk files allowed','error'); return; }
+        selectedFile=file;
+        q('#fileName').textContent=file.name; q('#fileSize').textContent=formatFileSize(file.size);
+        $('#fileInfo').removeClass('hidden'); $('#dropZone').addClass('hidden'); validateForm();
+    }
+    function clearFile(){ selectedFile=null; $('#fileInfo').addClass('hidden'); $('#dropZone').removeClass('hidden'); $('#fileInput').val(''); validateForm(); }
+    function formatFileSize(b){ if(!b) return '0 B'; const k=1024,s=['B','KB','MB','GB'],i=Math.floor(Math.log(b)/Math.log(k)); return parseFloat((b/Math.pow(k,i)).toFixed(2))+' '+s[i]; }
+
+    /* ---------- challenge inputs ---------- */
+    let CHALLENGE_SCHEMAS={};
+    function loadChallengeSchemas(){ fetch('/challenges').then(r=>r.ok?r.json():[]).then(l=>{(l||[]).forEach(c=>CHALLENGE_SCHEMAS[c.name]=c.inputs||[]);}).catch(()=>{}); }
+    function esc(s){ return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;'); }
+    function renderChallengeInputs(name){
+        const box=$('#challengeInputs'), schema=CHALLENGE_SCHEMAS[name]||[]; box.empty();
+        if(!schema.length){ box.addClass('hidden'); return; }
+        const cls='w-full bg-panel2 border border-edge rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-primary focus:outline-none';
+        schema.forEach(f=>{
+            // Author-sourced values, but escape anyway (defense in depth) so a schema field
+            // can never inject HTML even if it ever becomes player-influenced.
+            const id='ci_'+esc(f.name), nm=esc(f.name), ph=esc(f.placeholder||''), dv=esc(f.default||'');
+            const req=f.required?'<span class="text-danger">*</span>':''; let field;
+            if(f.type==='textarea') field=`<textarea id="${id}" data-name="${nm}" rows="3" placeholder="${ph}" class="ci-input ${cls}">${dv}</textarea>`;
+            else if(f.type==='select'){ const o=(f.options||[]).map(x=>`<option value="${esc(x)}" ${x===f.default?'selected':''}>${esc(x)}</option>`).join(''); field=`<select id="${id}" data-name="${nm}" class="ci-input ${cls}"><option value="" disabled ${f.default?'':'selected'}>Select…</option>${o}</select>`; }
+            else { const t=(f.type==='password'||f.type==='number')?f.type:'text'; field=`<input id="${id}" data-name="${nm}" type="${t}" value="${dv}" placeholder="${ph}" class="ci-input ${cls}">`; }
+            box.append(`<div><label class="block text-xs font-medium text-slate-400 mb-1">${esc(f.label)} ${req}</label>${field}</div>`);
+        });
+        box.removeClass('hidden'); box.find('.ci-input').on('change input', validateForm);
+    }
+    function collectChallengeInputs(){ const o={}; $('#challengeInputs .ci-input').each(function(){o[$(this).data('name')]=$(this).val()||'';}); return o; }
+    function challengeInputsValid(){ const s=CHALLENGE_SCHEMAS[$('#challengeSelect').val()]||[], v=collectChallengeInputs(); return s.every(f=>!f.required||(v[f.name]&&v[f.name]!=='')); }
+    function initializeFormValidation(){ loadChallengeSchemas(); $('#challengeSelect').on('change',function(){renderChallengeInputs($(this).val());validateForm();}); $('#challengeSelect, #powSolution').on('change input',validateForm); }
+    function validateForm(){ const c=$('#challengeSelect').val(), sol=POW_ENABLED?$('#powSolution').val():'x'; $('#submitButton').prop('disabled',!(c&&sol&&selectedFile&&challengeInputsValid())); }
+
+    /* ---------- submit ---------- */
+    function submitPOC(){
+        if(!selectedFile) return;
+        const fd=new FormData();
+        fd.append('file',selectedFile);
+        fd.append('chall_name',$('#challengeSelect').val());
+        fd.append('solution',$('#powSolution').val()||'');
+        fd.append('inputs',JSON.stringify(collectChallengeInputs()));
+        $('#submitButton').prop('disabled',true); q('#submitText').textContent='Submitting…';
+        $.ajax({ url:'/upload', method:'POST', data:fd, processData:false, contentType:false,
+            success:function(r){
+                if(r.status==='success'){
+                    if(r.challenge){ const cmd=`curl -s ${location.origin}/solve | python3 - ${r.challenge}`; q('#powCommand').innerText=cmd; }
+                    currentJobId=r.id; isLoadingFromUrl=false; updateUrlParameter('id',r.id);
+                    showStatusSection(); joinQueueRoom(r.id); requestCurrentStatus(r.id);
+                    switchTab('live'); showToast('POC submitted','success'); resetForm();
+                } else showToast(r.message||'Upload failed','error');
+            },
+            error:()=>showToast('Network error','error'),
+            complete:()=>{ $('#submitButton').prop('disabled',false); q('#submitText').textContent='Run POC'; }
+        });
+    }
+
+    /* ---------- view states ---------- */
+    function showIdle(){ $('#statusSection').addClass('hidden'); $('#stepper,#monitorBody,#loadingState').addClass('hidden'); $('#initialState').removeClass('hidden'); }
+    function showLoadingState(){ $('#initialState,#stepper,#monitorBody').addClass('hidden'); $('#loadingState').removeClass('hidden'); }
+    function showStatusSection(){
+        $('#initialState,#loadingState').addClass('hidden');
+        $('#stepper,#monitorBody').removeClass('hidden');
+        const j=q('#jobId'); j.textContent=currentJobId; j.classList.remove('hidden');
+        resetStatusDisplay();
+    }
+    function resetStatusDisplay(){
+        q('#progressPercent').textContent='0%'; q('#statusText').textContent='Connecting…';
+        logLines=[]; q('#logCount').textContent=''; q('#logStat').textContent='0 lines';
+        q('#logsContent').innerHTML='<div class="text-slate-600 px-4 py-6 text-center text-sm">No logs yet.</div>';
+        $('#resultReady').addClass('hidden'); $('#resultPending').removeClass('hidden');
+        $('#successBanner,#errorBanner').addClass('hidden');
+        liveHidden=false; q('#liveToggleBtn').innerHTML='<i class="fas fa-pause mr-1"></i>Pause';
+        paintStepper('PENDING_QUEUE');
+    }
+
+    function updateStatusDisplay(status){
+        if(isLoadingFromUrl){ showStatusSection(); isLoadingFromUrl=false; }
+        const st=status.status;
+        q('#statusText').textContent = STATUS_MSG[st]||st;
+        q('#progressPercent').textContent = (PROGRESS[st]||0)+'%';
+        paintStepper(st);
+        updateLiveView(st);
+        updateAutoLogs(st);
+
+        if(status.has_logs && !logLines.length) refreshLogs();
+
+        if(st==='ERROR'){
+            switchTab('result');
+            $('#resultPending').addClass('hidden'); $('#resultReady').removeClass('hidden');
+            $('#errorBanner').removeClass('hidden'); q('#errorMessage').textContent=status.error||'Unknown error';
+            if(currentJobId) leaveQueueRoom(currentJobId);
+            refreshLogs();
+        } else if(st==='COMPLETED'){
+            $('#resultPending').addClass('hidden'); $('#resultReady').removeClass('hidden');
+            $('#successBanner').removeClass('hidden');
+            if(status.duration) q('#processingTime').textContent=status.duration+'s';
+            q('#resultImage').src=`/screenshot/${currentJobId}?t=${Date.now()}`;
+            switchTab('result');
+            if(currentJobId) leaveQueueRoom(currentJobId);
+            refreshLogs();
         }
+    }
 
-        function updateCurrentTime() {
-            $('#currentTime').text(new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }));
-        }
+    /* ---------- tabs ---------- */
+    function switchTab(t){
+        activeTab=t;
+        document.querySelectorAll('.tab-pane').forEach(p=>p.classList.add('hidden'));
+        q('#tab-'+t).classList.remove('hidden'); q('#tab-'+t).classList.add('fade-in');
+        setTabStyles();
+        if(t==='logs' && !logLines.length) refreshLogs();
+    }
+    function setTabStyles(){
+        document.querySelectorAll('.tab-btn').forEach(b=>{
+            const on=b.dataset.tab===activeTab;
+            b.className='tab-btn px-4 py-2 text-sm rounded-t-lg font-medium '+(on?'bg-[#0a0e16] text-white border border-edge border-b-transparent -mb-px':'text-slate-400 hover:text-slate-200');
+        });
+    }
 
-        function initializeDropZone() {
-            const $dropZone = $('#dropZone');
-            const $fileInput = $('#fileInput');
-
-            $dropZone.on('click', () => $fileInput.click());
-            
-            $dropZone.on('dragover', function(e) {
-                e.preventDefault();
-                $(this).addClass('border-primary bg-blue-50');
-            });
-
-            $dropZone.on('dragleave', function(e) {
-                e.preventDefault();
-                $(this).removeClass('border-primary bg-blue-50');
-            });
-
-            $dropZone.on('drop', function(e) {
-                e.preventDefault();
-                $(this).removeClass('border-primary bg-blue-50');
-                
-                const files = e.originalEvent.dataTransfer.files;
-                if (files.length > 0) handleFile(files[0]);
-            });
-
-            $fileInput.on('change', function() {
-                if (this.files.length > 0) handleFile(this.files[0]);
-            });
-        }
-
-        function handleFile(file) {
-            if (!file.name.toLowerCase().endsWith('.apk')) {
-                showToast('Only APK files are allowed', 'error');
-                return;
-            }
-
-            selectedFile = file;
-            $('#fileName').text(file.name);
-            $('#fileSize').text(formatFileSize(file.size));
-            $('#fileInfo').removeClass('hidden');
-            $('#dropZone').addClass('hidden');
-            
-            validateForm();
-        }
-
-        function clearFile() {
-            selectedFile = null;
-            $('#fileInfo').addClass('hidden');
-            $('#dropZone').removeClass('hidden');
-            $('#fileInput').val('');
-            validateForm();
-        }
-
-        function formatFileSize(bytes) {
-            if (bytes === 0) return '0 Bytes';
-            const k = 1024;
-            const sizes = ['Bytes', 'KB', 'MB', 'GB'];
-            const i = Math.floor(Math.log(bytes) / Math.log(k));
-            return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
-        }
-
-        let CHALLENGE_SCHEMAS = {};
-        function loadChallengeSchemas() {
-            fetch('/challenges')
-                .then(r => r.ok ? r.json() : [])
-                .then(list => { (list || []).forEach(c => CHALLENGE_SCHEMAS[c.name] = c.inputs || []); })
-                .catch(() => {});
-        }
-
-        function renderChallengeInputs(name) {
-            const $box = $('#challengeInputs');
-            const schema = CHALLENGE_SCHEMAS[name] || [];
-            $box.empty();
-            if (!schema.length) { $box.addClass('hidden'); return; }
-            schema.forEach(f => {
-                const id = 'ci_' + f.name;
-                const req = f.required ? '<span class="text-red-500">*</span>' : '';
-                let field;
-                if (f.type === 'textarea') {
-                    field = `<textarea id="${id}" data-name="${f.name}" rows="3" placeholder="${f.placeholder||''}" class="ci-input w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent">${f.default||''}</textarea>`;
-                } else if (f.type === 'select') {
-                    const opts = (f.options||[]).map(o => `<option value="${o}" ${o===f.default?'selected':''}>${o}</option>`).join('');
-                    field = `<select id="${id}" data-name="${f.name}" class="ci-input w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent"><option value="" disabled ${f.default?'':'selected'}>Select…</option>${opts}</select>`;
-                } else {
-                    const t = (f.type === 'password' || f.type === 'number') ? f.type : 'text';
-                    field = `<input id="${id}" data-name="${f.name}" type="${t}" value="${f.default||''}" placeholder="${f.placeholder||''}" class="ci-input w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent">`;
-                }
-                $box.append(`<div><label class="block text-sm font-medium text-gray-700 mb-1">${f.label} ${req}</label>${field}</div>`);
-            });
-            $box.removeClass('hidden');
-            $box.find('.ci-input').on('change input', validateForm);
-        }
-
-        function collectChallengeInputs() {
-            const out = {};
-            $('#challengeInputs .ci-input').each(function () {
-                out[$(this).data('name')] = $(this).val() || '';
-            });
-            return out;
-        }
-
-        function challengeInputsValid() {
-            const name = $('#challengeSelect').val();
-            const schema = CHALLENGE_SCHEMAS[name] || [];
-            const vals = collectChallengeInputs();
-            return schema.every(f => !f.required || (vals[f.name] && vals[f.name] !== ''));
-        }
-
-        function initializeFormValidation() {
-            loadChallengeSchemas();
-            $('#challengeSelect').on('change', function () { renderChallengeInputs($(this).val()); validateForm(); });
-            $('#challengeSelect, #powSolution').on('change input', validateForm);
-        }
-
-        function validateForm() {
-            const challenge = $('#challengeSelect').val();
-            const powEnabled = {{ 'true' if enable_pow else 'false' }};
-            const solution = powEnabled ? $('#powSolution').val() : 'n/a';
-            const hasFile = selectedFile !== null;
-            
-            $('#submitButton').prop('disabled', !(challenge && solution && hasFile && challengeInputsValid()));
-        }
-
-        function submitPOC() {
-            if (!selectedFile) return;
-
-            const formData = new FormData();
-            formData.append('file', selectedFile);
-            formData.append('chall_name', $('#challengeSelect').val());
-            formData.append('solution', $('#powSolution').val() || '');
-            formData.append('inputs', JSON.stringify(collectChallengeInputs()));
-
-            const $submitButton = $('#submitButton');
-            const $submitText = $('#submitText');
-            
-            $submitButton.prop('disabled', true);
-            $submitText.text('Submitting...');
-
-            $.ajax({
-                url: '/upload',
-                method: 'POST',
-                data: formData,
-                processData: false,
-                contentType: false,
-                success: function(result) {
-                    if (result.status === 'success') {
-                        if (result.challenge) {
-                            $('#powCommand').text(`curl -sSfL https://pwn.red/pow | sh -s ${result.challenge}`);
-                            $('#powCopyButton').attr('onclick', `copyToClipboard('curl -sSfL https://pwn.red/pow | sh -s ${result.challenge}')`);
-                        }
-                        currentJobId = result.id;
-                        isLoadingFromUrl = false;
-                        updateUrlParameter('id', result.id);
-                        showStatusSection();
-                        joinQueueRoom(result.id);
-                        requestCurrentStatus(result.id);
-                        showToast('POC submitted successfully!', 'success');
-                        resetForm();
-                    } else {
-                        showToast(result.message || 'Upload failed', 'error');
-                    }
-                },
-                error: () => showToast('Network error occurred', 'error'),
-                complete: function() {
-                    $submitButton.prop('disabled', false);
-                    $submitText.text('Submit POC');
-                }
-            });
-        }
-
-        function showLoadingState() {
-            $('#initialState').addClass('hidden');
-            $('#loadingState').removeClass('hidden');
-            $('#statusSection').addClass('hidden');
-        }
-
-        function showStatusSection() {
-            $('#initialState').addClass('hidden');
-            $('#loadingState').addClass('hidden');
-            $('#statusSection').removeClass('hidden');
-            $('#jobId').text(currentJobId);
-            resetStatusDisplay();
-        }
-
-        function resetStatusDisplay() {
-            $('#errorDisplay, #successDisplay').addClass('hidden');
-            $('#progressBar').css('width', '0%').removeClass('bg-green-500').addClass('bg-primary');
-            $('#progressPercent').text('0%');
-            $('#statusText').text('Connecting...');
-            $('#processingTime').text('-');
-            $('#logsDisplay').addClass('hidden');
-            $('#logsContent').addClass('hidden').text('Loading…');
-            $('#logsToggleBtn').text('View logs');
-            logsLoaded = false;
-        }
-
-        function joinQueueRoom(queueId) {
-            socket?.emit('join_queue', { queue_id: queueId });
-        }
-
-        function leaveQueueRoom(queueId) {
-            socket?.emit('leave_queue', { queue_id: queueId });
-        }
-
-        function requestCurrentStatus(queueId) {
-            socket?.emit('get_status', { queue_id: queueId });
-        }
-
-        function updateQueueStats(stats) {
-            $('#queueSize').text(stats.queue_size);
-        }
-
-        function updateStatusDisplay(status) {
-            if (isLoadingFromUrl) {
-                showStatusSection();
-                isLoadingFromUrl = false;
-            }
-
-            const statusMessages = {
-                'PENDING_QUEUE': 'Waiting for queue...',
-                'INITIALIZING': 'Initializing...',
-                'INSTALLING_POC': 'Installing POC application...',
-                'RUNNING_CHALLENGE': 'Running challenge application...',
-                'RUNNING_POC': 'Running POC application...',
-                'TAKING_SCREENSHOT': 'Taking screenshot...',
-                'COMPLETED': 'Completed successfully!',
-                'ERROR': 'An error occurred!'
+    /* ---------- live view ---------- */
+    let liveTimer=null, liveHidden=false, frameTimes=[];
+    function startLivePolling(){
+        if(liveTimer||liveHidden||!currentJobId) return;
+        const id=currentJobId;
+        const tick=()=>{
+            const img=new Image();
+            img.onload=()=>{
+                q('#liveImage').src=img.src;
+                q('#liveIdle').classList.add('hidden');
+                q('#liveBadge').classList.remove('hidden'); q('#liveBadge').classList.add('flex');
+                const now=Date.now(); frameTimes.push(now); frameTimes=frameTimes.filter(t=>now-t<4000);
+                if(frameTimes.length>1){ const fps=(frameTimes.length-1)/((now-frameTimes[0])/1000); q('#liveFps').textContent=fps.toFixed(1)+' fps'; }
             };
+            img.onerror=()=>{};
+            img.src=`/frame/${id}?t=${Date.now()}`;
+        };
+        tick(); liveTimer=setInterval(tick,650);
+    }
+    function stopLivePolling(){ if(liveTimer){clearInterval(liveTimer);liveTimer=null;} q('#liveBadge').classList.add('hidden'); q('#liveFps').textContent='—'; }
+    function updateLiveView(st){
+        if(ACTIVE.includes(st)&&currentJobId){ if(!liveHidden) startLivePolling(); }
+        else if(st==='COMPLETED'||st==='ERROR'){ stopLivePolling(); }
+    }
+    function toggleLive(){
+        liveHidden=!liveHidden;
+        if(liveHidden){ stopLivePolling(); q('#liveToggleBtn').innerHTML='<i class="fas fa-play mr-1"></i>Resume'; }
+        else { q('#liveToggleBtn').innerHTML='<i class="fas fa-pause mr-1"></i>Pause'; startLivePolling(); }
+    }
+    function liveFullscreen(){ const el=q('#liveImage'); if(el.requestFullscreen) el.requestFullscreen(); }
 
-            const progressValues = {
-                'PENDING_QUEUE': 0,
-                'INITIALIZING': 15,
-                'INSTALLING_POC': 30,
-                'RUNNING_CHALLENGE': 50,
-                'RUNNING_POC': 75,
-                'TAKING_SCREENSHOT': 90,
-                'COMPLETED': 100,
-                'ERROR': 100
-            };
+    /* ---------- logs ---------- */
+    let logLines=[], autoLogTimer=null;
+    function parseLevel(line){ const m=line.match(/\s([VDIWEF])\s/); return m?m[1]:''; }
+    function refreshLogs(){
+        if(!currentJobId) return;
+        fetch(`/logs/${currentJobId}`).then(r=>r.ok?r.text():Promise.reject(r.status))
+            .then(t=>{ logLines=t.split('\n'); renderLogs(); })
+            .catch(()=>{ if(!logLines.length){ q('#logsContent').innerHTML='<div class="text-slate-600 px-4 py-6 text-center text-sm">No logs yet.</div>'; } });
+    }
+    const LEVEL_ORDER={E:3,W:2,I:1,D:0,V:0};
+    function renderLogs(){
+        const f=(q('#logFilter').value||'').toLowerCase();
+        const minLvl=q('#logLevel').value;
+        const box=q('#logsContent');
+        const stick = q('#autoScroll').checked && (box.scrollHeight-box.scrollTop-box.clientHeight<40);
+        let shown=0;
+        const html=logLines.map(line=>{
+            if(!line) return '';
+            if(f && !line.toLowerCase().includes(f)) return '';
+            const lv=parseLevel(line);
+            if(minLvl && lv && LEVEL_ORDER[lv]!==undefined && LEVEL_ORDER[lv]<(LEVEL_ORDER[minLvl]??0)) return '';
+            shown++;
+            const safe=line.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+            const cls=lv?('lv-'+lv):'text-slate-400';
+            return `<div class="log-line ${cls}"><span class="log-badge">${lv||'·'}</span><span>${safe}</span></div>`;
+        }).join('');
+        box.innerHTML = shown? html : '<div class="text-slate-600 px-4 py-6 text-center text-sm">No matching lines.</div>';
+        q('#logStat').textContent = shown+' / '+logLines.filter(Boolean).length+' lines';
+        q('#logCount').textContent = '('+logLines.filter(Boolean).length+')';
+        if(stick) box.scrollTop=box.scrollHeight;
+    }
+    function toggleWrap(){ q('#logsContent').classList.toggle('log-wrap'); q('#wrapBtn').classList.toggle('bg-primary'); }
+    function toggleAutoLogs(){
+        const btn=q('#autoLogBtn');
+        if(autoLogTimer){ clearInterval(autoLogTimer); autoLogTimer=null; btn.classList.remove('bg-primary'); }
+        else { autoLogTimer=setInterval(refreshLogs,2000); btn.classList.add('bg-primary'); refreshLogs(); }
+    }
+    function updateAutoLogs(st){
+        if(ACTIVE.includes(st)){ if(!autoLogTimer){ autoLogTimer=setInterval(refreshLogs,2000); q('#autoLogBtn').classList.add('bg-primary'); } }
+        else if(autoLogTimer){ clearInterval(autoLogTimer); autoLogTimer=null; q('#autoLogBtn').classList.remove('bg-primary'); }
+    }
+    function copyLogs(){ copyToClipboard(logLines.join('\n')); }
+    function downloadLogs(){
+        const blob=new Blob([logLines.join('\n')],{type:'text/plain'});
+        const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download=`logs_${currentJobId||'job'}.txt`; a.click(); URL.revokeObjectURL(a.href);
+    }
 
-            const $progressBar = $('#progressBar');
-            const progress = progressValues[status.status] || 0;
+    /* ---------- screenshot modal ---------- */
+    function openScreenshot(){ if(!currentJobId) return; q('#screenshotImage').src=`/screenshot/${currentJobId}?t=${Date.now()}`; $('#screenshotModal').removeClass('hidden'); }
+    function closeScreenshotModal(){ $('#screenshotModal').addClass('hidden'); }
+    $('#screenshotModal').on('click',function(e){ if(e.target===this) closeScreenshotModal(); });
 
-            console.log(status);
-            console.log(statusMessages[status.status]);
-            console.log(progressValues[status.status]);
+    function resetForm(){ $('#challengeSelect').val(''); $('#powSolution').val(''); $('#challengeInputs').empty().addClass('hidden'); clearFile(); validateForm(); }
+    function copyToClipboard(t){ navigator.clipboard.writeText(t).then(()=>showToast('Copied','success')).catch(()=>showToast('Copy failed','error')); }
 
-            $('#statusText').text(statusMessages[status.status] || status.status);
-            $progressBar.css('width', `${progress}%`).removeClass('bg-green-500')
-                .removeClass('bg-red-500')
-                .addClass('bg-primary');
-            $('#progressPercent').text(`${progress}%`);
+    function showToast(msg,type='info'){
+        const c=type==='error'?'bg-danger':type==='success'?'bg-success':'bg-primary';
+        const ic=type==='error'?'triangle-exclamation':type==='success'?'circle-check':'circle-info';
+        const t=$(`<div class="${c} text-white px-4 py-2.5 rounded-lg shadow-lg text-sm flex items-center gap-2 translate-x-[120%] transition-transform duration-300"><i class="fas fa-${ic}"></i><span>${msg}</span></div>`);
+        $('#toastContainer').append(t);
+        setTimeout(()=>t.removeClass('translate-x-[120%]'),50);
+        setTimeout(()=>{ t.addClass('translate-x-[120%]'); setTimeout(()=>t.remove(),300); },3000);
+    }
 
-            if (status.has_logs) {
-                $('#logsDisplay').removeClass('hidden');
-            }
-
-            if (status.status === 'ERROR') {
-                $('#errorMessage').text(status.error || 'Unknown error occurred');
-                $('#errorDisplay').removeClass('hidden');
-                $progressBar.removeClass('bg-green-500').addClass('bg-red-500');
-                if (currentJobId) leaveQueueRoom(currentJobId);
-            } else if (status.status === 'COMPLETED') {
-                $('#successDisplay').removeClass('hidden');
-                $progressBar.removeClass('bg-red-500').addClass('bg-green-500');
-
-                if (status.duration) {
-                    $('#processingTime').text(`${status.duration}s`);
-                }
-
-                if (currentJobId) leaveQueueRoom(currentJobId);
-            }
-        }
-
-        let logsLoaded = false;
-        function refreshLogs() {
-            if (!currentJobId) return;
-            fetch(`/logs/${currentJobId}`)
-                .then(r => r.ok ? r.text() : Promise.reject(r.status))
-                .then(t => { $('#logsContent').text(t); logsLoaded = true; })
-                .catch(() => $('#logsContent').text('(no logs available yet)'));
-        }
-
-        function toggleLogs() {
-            const $pre = $('#logsContent');
-            if ($pre.hasClass('hidden')) {
-                if (!logsLoaded) refreshLogs();
-                $pre.removeClass('hidden');
-                $('#logsToggleBtn').text('Hide logs');
-            } else {
-                $pre.addClass('hidden');
-                $('#logsToggleBtn').text('View logs');
-            }
-        }
-
-        function viewScreenshot() {
-            if (!currentJobId) return;
-            $('#screenshotImage').attr('src', `/screenshot/${currentJobId}`);
-            $('#screenshotModal').removeClass('hidden');
-        }
-
-        function closeScreenshotModal() {
-            $('#screenshotModal').addClass('hidden');
-        }
-
-        function resetForm() {
-            $('#challengeSelect').val('');
-            $('#powSolution').val('');
-            $('#challengeInputs').empty().addClass('hidden');
-            clearFile();
-            validateForm();
-        }
-
-        function copyToClipboard(text) {
-            navigator.clipboard.writeText(text).then(() => {
-                showToast('Command copied to clipboard!', 'success');
-            });
-        }
-
-        function showToast(message, type = 'info') {
-            const bgColor = type === 'error' ? 'bg-red-500' : 
-                           type === 'success' ? 'bg-green-500' : 
-                           'bg-blue-500';
-            
-            const $toast = $(`
-                <div class="${bgColor} text-white px-4 py-3 rounded-lg shadow-lg transform transition-all duration-300 translate-x-full">
-                    <div class="flex items-center">
-                        <i class="fas fa-${type === 'error' ? 'exclamation-triangle' : type === 'success' ? 'check-circle' : 'info-circle'} mr-2"></i>
-                        <span>${message}</span>
-                    </div>
-                </div>
-            `);
-            
-            $('#toastContainer').append($toast);
-            
-            setTimeout(() => $toast.removeClass('translate-x-full'), 100);
-            setTimeout(() => {
-                $toast.addClass('translate-x-full');
-                setTimeout(() => $toast.remove(), 300);
-            }, 3000);
-        }
-
-        $('#screenshotModal').on('click', function(e) {
-            if (e.target === this) closeScreenshotModal();
-        });
-
-        $(window).on('beforeunload', function() {
-            if (currentJobId) leaveQueueRoom(currentJobId);
-        });
+    $(window).on('beforeunload',()=>{ if(currentJobId) leaveQueueRoom(currentJobId); });
 </script>
 </body>
 </html>

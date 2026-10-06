@@ -20,3 +20,7 @@ web/src/screenshots/*
 # Python
 __pycache__/
 *.pyc
+
+# Plans
+FEATURES_PLAN.md
+PLAN.md

@@ -1,0 +1,24 @@
+# REFERENCE ONLY: mirrors opsscheduler/client.py in the declarative challenge.toml format.
+# Because client.py exists in this folder, client.py values and its callback win over this file.
+# For a toml-only challenge, delete client.py; the default callback launches the player's POC.
+package_name     = "com.pentathon.opsscheduler"
+timeout          = 300
+screenshot_delay = 10
+
+[backend]
+port = 3014
+
+[[inputs]]
+name = "host"
+label = "Server host"
+type = "text"
+required = false
+default = "10.0.2.2"
+placeholder = "10.0.2.2"
+
+[[inputs]]
+name = "port"
+label = "Server port"
+type = "number"
+required = false
+default = "3014"

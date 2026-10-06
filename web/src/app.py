@@ -3,6 +3,11 @@ import uuid
 import re
 import time
 import glob
+import hmac
+import io
+import shlex
+import tomllib
+from types import SimpleNamespace
 from threading import Thread, Lock
 from flask import Flask, render_template, request, jsonify, send_file, session, Response
 from flask_socketio import SocketIO, emit, join_room, leave_room
@@ -80,14 +85,83 @@ def validate_inputs(client, provided):
         if field['required'] and val == '':
             return None, f"Input '{field['label']}' is required."
         if field['type'] == 'number' and val != '':
-            try:
-                float(val)
-            except ValueError:
+            # Strict decimal only. Rejects 'inf'/'nan'/'1e5'/hex that float() would accept —
+            # defense in depth for authors who pass a numeric input to the guest shell.
+            if not re.fullmatch(r'-?\d{1,15}(\.\d{1,6})?', val):
                 return None, f"Input '{field['label']}' must be a number."
         if field['type'] == 'select' and val != '' and val not in field['options']:
             return None, f"Invalid value for '{field['label']}'."
         clean[name] = val
     return clean, None
+
+# ---- Author-provided per-challenge hooks (setup.sh / reset.sh) ----
+# SECURITY: these files are baked into the image by the challenge author (trusted). Their text is
+# run as root INSIDE the emulator guest via device.execute_script (the same mechanism the harness
+# already uses). NO player-controlled data (APK, filenames, form inputs) is ever passed to them.
+HOOK_TIMEOUT = 60
+
+def _challenge_dir(client):
+    return os.path.join(Config.CHALLENGES_FOLDER, client.CHALLENGE_NAME)
+
+def run_hook(client, script_name):
+    """Run challenges/<name>/<script_name> in the guest if it exists. Returns True if it ran."""
+    path = os.path.join(_challenge_dir(client), script_name)
+    if not os.path.isfile(path):
+        return False
+    with open(path, 'r', encoding='utf-8') as fh:
+        body = fh.read()
+    env_name = 'CHALLENGE_FLAG_' + re.sub(r'[^A-Za-z0-9]', '_', client.CHALLENGE_NAME).upper()
+    flag = os.environ.get(env_name, '')
+    script = f'FLAG={shlex.quote(flag)}\nexport FLAG\n{body}\n'
+    res = device_manager.device.execute_script(script, timeout=HOOK_TIMEOUT)
+    rc = getattr(res, 'exitcode', 0)
+    if rc not in (0, None):
+        raise Exception(f'{script_name} failed (exit {rc})')
+    return True
+
+def default_callback(poc_app, update_status, inputs=None, device=None):
+    """Default callback for challenge.toml-only challenges (setup.sh already ran in INITIALIZING)."""
+    poc_app.start()
+
+def load_challenge(folder):
+    """Build a client object from challenges/<name>/{client.py,challenge.toml}. Raises on error."""
+    name = os.path.basename(folder)
+    client_py = os.path.join(folder, 'client.py')
+    toml_path = os.path.join(folder, 'challenge.toml')
+    cfg = {}
+    if os.path.isfile(toml_path):
+        with open(toml_path, 'rb') as fh:
+            cfg = tomllib.load(fh)
+
+    if os.path.isfile(client_py):
+        client = import_module(client_py.replace(os.sep, ".")[:-3])
+    else:
+        client = SimpleNamespace()
+    client.CHALLENGE_NAME = name
+
+    # client.py wins for anything it defines; challenge.toml fills the rest.
+    if not getattr(client, 'PACKAGE_NAME', None) and cfg.get('package_name'):
+        client.PACKAGE_NAME = str(cfg['package_name'])
+    if not hasattr(client, 'TIMEOUT'):
+        client.TIMEOUT = int(cfg.get('timeout', 300))
+    if not hasattr(client, 'SCREENSHOT_DELAY') and 'screenshot_delay' in cfg:
+        client.SCREENSHOT_DELAY = int(cfg['screenshot_delay'])
+    if not hasattr(client, 'INPUTS') and isinstance(cfg.get('inputs'), list):
+        client.INPUTS = cfg['inputs']
+    backend = cfg.get('backend')
+    if isinstance(backend, dict) and 'port' in backend and not hasattr(client, 'BACKEND_PORT'):
+        client.BACKEND_PORT = int(backend['port'])
+    if not getattr(client, 'callback', None):
+        client.callback = default_callback
+
+    if not getattr(client, 'PACKAGE_NAME', None):
+        raise ValueError('PACKAGE_NAME / package_name is required')
+    if not PKG_RE.match(client.PACKAGE_NAME):
+        raise ValueError('invalid package name')
+    return client
+
+def run_reset(client):
+    return run_hook(client, 'reset.sh')
 
 def clear_logcat():
     try:
@@ -95,7 +169,21 @@ def clear_logcat():
     except Exception:
         pass
 
-import shlex
+def dismiss_system_dialogs(rounds=3):
+    """Clear ANR / "isn't responding" system dialogs before the proof screenshot.
+
+    Android emulators routinely pop "System UI isn't responding" / app-ANR dialogs
+    under load. CLOSE_SYSTEM_DIALOGS dismisses them like tapping "Wait" — the
+    foreground app is kept, so the exploit output stays visible. Best effort only;
+    a failure here must never block the screenshot."""
+    for _ in range(rounds):
+        try:
+            device_manager.device.execute_script(
+                'am broadcast -a android.intent.action.CLOSE_SYSTEM_DIALOGS', timeout=5)
+        except Exception:
+            break
+        time.sleep(0.4)
+
 PKG_RE = re.compile(r'^[A-Za-z0-9_]+(\.[A-Za-z0-9_]+)+$')
 
 def capture_logcat(packages, max_lines=800):
@@ -247,9 +335,15 @@ def upload():
     if not sid:
         sid = uuid.uuid4().hex
         session['sid'] = sid
-    # Source IP (first hop from a trusted proxy) — a harder anti-abuse key than the cookie sid.
-    fwd = request.headers.get('X-Forwarded-For', '')
-    src_ip = (fwd.split(',')[0].strip() if fwd else '') or (request.remote_addr or 'unknown')
+    # Source IP — a harder anti-abuse key than the cookie sid. X-Forwarded-For is only
+    # honored when TRUSTED_PROXY_COUNT > 0 (real proxies in front); otherwise it is
+    # attacker-controlled and ignored, so players can't spoof it to dodge the per-IP cap.
+    src_ip = request.remote_addr or 'unknown'
+    n = Config.TRUSTED_PROXY_COUNT
+    if n > 0:
+        fwd = [h.strip() for h in request.headers.get('X-Forwarded-For', '').split(',') if h.strip()]
+        if fwd:
+            src_ip = fwd[-n] if len(fwd) >= n else fwd[0]
 
     with queue_lock:
         active = len([q for q in queue if not q.is_completed])
@@ -321,6 +415,54 @@ def logs(id):
     if not item.logs:
         return 'No logs available yet for this job.', 404
     return Response(item.logs, mimetype='text/plain')
+
+STREAM_ACTIVE_STATUSES = {Status.INITIALIZING, Status.INSTALLING_POC, Status.RUNNING_CHALLENGE,
+                          Status.RUNNING_POC, Status.TAKING_SCREENSHOT}
+STREAM_INTERVAL = 0.6        # ~1.5 fps
+STREAM_MAX_SECONDS = 120     # hard cap per stream
+STREAM_MAX_CONCURRENT = 4    # bound waitress threads / device load
+_stream_count = 0
+_stream_lock = Lock()
+
+@app.route('/frame/<id>')
+def frame(id):
+    """One live JPEG of the emulator screen, owner-bound, only while this job is running.
+    The browser polls this (~1.5 fps) for a 'live view'. Single short request = works under
+    waitress (unlike a long-lived MJPEG stream). No adb/scrcpy is exposed to players."""
+    item, owned = _owns_job(id)
+    if item is None or not owned:
+        return 'Job not found!', 404
+    if item.is_completed:
+        return 'Job finished', 409
+    with _stream_lock:
+        if _stream_count >= STREAM_MAX_CONCURRENT:
+            return 'Busy', 429
+    try:
+        data = device_manager.device.screenshot().getvalue()   # already JPEG
+    except Exception:
+        return 'No frame', 503
+    resp = Response(data, mimetype='image/jpeg')
+    resp.headers['Cache-Control'] = 'no-store'
+    return resp
+
+@app.route('/reset/<challenge>', methods=['POST'])
+def reset_challenge(challenge):
+    """Admin only: run the challenge's author-provided reset.sh in the guest. Needs ADMIN_TOKEN."""
+    token = request.headers.get('X-Admin-Token', '')
+    if not Config.ADMIN_TOKEN or not hmac.compare_digest(token.encode(), Config.ADMIN_TOKEN.encode()):
+        return 'Not found!', 404
+    client = next((c for c in clients if c.CHALLENGE_NAME == challenge), None)
+    if not client:
+        return jsonify({'status': 'error', 'message': 'Unknown challenge'}), 404
+    with queue_lock:
+        busy = any(q.status in STREAM_ACTIVE_STATUSES or q.status == Status.TAKING_SCREENSHOT for q in queue)
+    if busy:
+        return jsonify({'status': 'error', 'message': 'A job is running; try again later'}), 409
+    try:
+        ran = run_reset(client)
+    except Exception as e:
+        return jsonify({'status': 'error', 'message': str(e)}), 500
+    return jsonify({'status': 'success', 'ran': ran})
 
 @app.route('/device_status')
 def device_status():
@@ -469,6 +611,14 @@ class QueueThread(Thread):
             if not chall_app.is_installed():
                 raise Exception('Failed to install challenge APK!')
 
+        # Author-provided setup.sh (guest root; no player input). Runs before the POC is installed.
+        try:
+            run_hook(q.client, 'setup.sh')
+        except Exception as e:
+            import traceback
+            traceback.print_exc()
+            raise Exception('Challenge setup failed! Contact an admin.')
+
         q.update_status(Status.INSTALLING_POC)
         emit_status_update(q)
 
@@ -542,6 +692,9 @@ class QueueThread(Thread):
         if delay and delay > 0:
             time.sleep(delay)
 
+        # Dismiss any ANR / "isn't responding" dialog so it doesn't cover the proof.
+        dismiss_system_dialogs()
+
         screenshot = device_manager.device.screenshot()
         screenshot.save(os.path.join(Config.SCREENSHOT_FOLDER, f'{q.id}.png'))
 
@@ -549,19 +702,17 @@ class QueueThread(Thread):
         emit_status_update(q)
 
 if __name__ == '__main__':
-    for client_file in sorted(glob.glob(os.path.join("challenges", "*", "client.py"))):
+    folders = set()
+    for pat in ("client.py", "challenge.toml"):
+        for f in glob.glob(os.path.join("challenges", "*", pat)):
+            folders.add(os.path.dirname(f))
+    for folder in sorted(folders):
         try:
-            module_path = client_file.replace(os.sep, ".")[:-3]
-            client = import_module(module_path)
-            client.CHALLENGE_NAME = os.path.basename(os.path.dirname(client_file))
-            if not getattr(client, 'PACKAGE_NAME', None):
-                raise ValueError('PACKAGE_NAME is required')
-            if not hasattr(client, 'TIMEOUT'):
-                client.TIMEOUT = 300
+            client = load_challenge(folder)
             clients.append(client)
             print(f"[i] Loaded challenge: {client.CHALLENGE_NAME} ({client.PACKAGE_NAME})")
         except Exception as e:
-            print(f"[!] Failed to load {client_file}: {e}")
+            print(f"[!] Failed to load {folder}: {e}")
 
     # Start device monitoring
     device_manager.start_monitoring()

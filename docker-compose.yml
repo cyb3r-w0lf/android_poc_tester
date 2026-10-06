@@ -61,6 +61,7 @@ services:
       MAX_QUEUE_SIZE: ${MAX_QUEUE_SIZE:-50}
       MAX_JOBS_PER_SESSION: ${MAX_JOBS_PER_SESSION:-1}
       MAX_JOBS_PER_IP: ${MAX_JOBS_PER_IP:-2}
+      TRUSTED_PROXY_COUNT: ${TRUSTED_PROXY_COUNT:-0}
       SESSION_COOKIE_SECURE: ${SESSION_COOKIE_SECURE:-false}
       SESSION_COOKIE_SAMESITE: ${SESSION_COOKIE_SAMESITE:-Lax}
       CORS_ORIGINS: ${CORS_ORIGINS:-*}
@@ -69,6 +70,12 @@ services:
       ADB_HOST: ${ADB_HOST:-device}
       ADB_PORT: ${ADB_PORT:-5037}
       OPSSCHED_BACKEND: ${OPSSCHED_BACKEND:-http://10.0.2.2:3014}
+      # Admin token for POST /reset/<challenge> (empty = route disabled).
+      ADMIN_TOKEN: ${ADMIN_TOKEN:-}
+      # Per-challenge dynamic flag handed to that challenge's setup.sh/reset.sh as $FLAG.
+      # Add one line per challenge: CHALLENGE_FLAG_<NAME_UPPER> (non-alnum -> _).
+      CHALLENGE_FLAG_OPSSCHEDULER: ${CHALLENGE_FLAG_OPSSCHEDULER:-}
+      CHALLENGE_FLAG_OPSTOML: ${CHALLENGE_FLAG_OPSTOML:-}
     volumes:
       - uploads:/app/src/uploads
       - screenshots:/app/src/screenshots

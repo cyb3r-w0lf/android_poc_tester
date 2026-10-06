@@ -1,0 +1,6 @@
+package_name     = "com.pentathon.opsscheduler"
+timeout          = 300
+screenshot_delay = 10
+
+[backend]
+port = 3014
