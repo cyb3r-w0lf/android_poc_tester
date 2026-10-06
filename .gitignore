@@ -1,0 +1,22 @@
+# Secrets / local config
+.env
+.env.tmp
+.omc
+
+# Real-flag challenge APKs — NEVER commit these (they contain the real flag)
+device/challenges_apk/*.apk
+!device/challenges_apk/.gitkeep
+*.idsig
+
+# Any challenge APK dropped alongside a web-side plugin (keep client.py, ignore apks)
+web/src/challenges/**/*.apk
+
+# Runtime output
+web/src/uploads/*
+!web/src/uploads/.gitkeep
+web/src/screenshots/*
+!web/src/screenshots/.gitkeep
+
+# Python
+__pycache__/
+*.pyc

@@ -1,0 +1,90 @@
+services:
+  device:
+    build:
+      context: device
+      dockerfile: Dockerfile
+    # UNPRIVILEGED, ALL CAPABILITIES DROPPED. The emulator only needs /dev/kvm (world-rw,
+    # opened without any cap). Guest-side iptables/su/remount run as root INSIDE the VM (via
+    # adb), so the container itself needs no caps. no-new-privileges + the default
+    # seccomp/apparmor profiles stay active. If the emulator genuinely fails to boot, add
+    # back ONE specific cap here — never `privileged`.
+    cap_drop:
+      - ALL
+    devices:
+      - /dev/kvm
+    security_opt:
+      - no-new-privileges:true
+    environment:
+      MAX_MEMORY: ${MAX_MEMORY:-4096}
+      SU_NAME: ${SU_NAME}
+      SU_REMOVE: ${SU_REMOVE:-true}
+      BACKEND_FORWARDS: ${BACKEND_FORWARDS:-}
+      EGRESS_LOCKDOWN: ${EGRESS_LOCKDOWN:-true}
+      EGRESS_ALLOW: ${EGRESS_ALLOW:-}
+      EGRESS_ALLOW_PORTS: ${EGRESS_ALLOW_PORTS:-}
+      EGRESS_DENY_PORTS: ${EGRESS_DENY_PORTS:-}
+    tmpfs:
+      - /data:size=8G
+      - /tmp:size=2G
+    expose:
+      - "65000"
+    networks:
+      - app-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "sh", "-c", "test -f /app/device_ready && test \"$(cat /app/device_ready)\" = \"1\" || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 20
+      start_period: 300s
+
+  web:
+    build:
+      context: web
+      dockerfile: Dockerfile
+    # Unprivileged, all caps dropped. Flask/aapt/LAMDA-client need none.
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    ports:
+      - "${WEB_PORT:-5000}:5000"
+    depends_on:
+      device:
+        condition: service_healthy
+    environment:
+      DEBUG: ${DEBUG:-false}
+      SECRET_KEY: ${SECRET_KEY:-}
+      ENABLE_POW: ${ENABLE_POW:-true}
+      POW_DIFFICULTY: ${POW_DIFFICULTY:-250000}
+      MAX_FILE_SIZE: ${MAX_FILE_SIZE:-100}
+      MAX_QUEUE_SIZE: ${MAX_QUEUE_SIZE:-50}
+      MAX_JOBS_PER_SESSION: ${MAX_JOBS_PER_SESSION:-1}
+      MAX_JOBS_PER_IP: ${MAX_JOBS_PER_IP:-2}
+      SESSION_COOKIE_SECURE: ${SESSION_COOKIE_SECURE:-false}
+      SESSION_COOKIE_SAMESITE: ${SESSION_COOKIE_SAMESITE:-Lax}
+      CORS_ORIGINS: ${CORS_ORIGINS:-*}
+      JOB_RETENTION_SECONDS: ${JOB_RETENTION_SECONDS:-3600}
+      SCREENSHOT_DELAY: ${SCREENSHOT_DELAY:-3}
+      ADB_HOST: ${ADB_HOST:-device}
+      ADB_PORT: ${ADB_PORT:-5037}
+      OPSSCHED_BACKEND: ${OPSSCHED_BACKEND:-http://10.0.2.2:3014}
+    volumes:
+      - uploads:/app/src/uploads
+      - screenshots:/app/src/screenshots
+    networks:
+      - app-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:5000/"]
+      interval: 30s
+      timeout: 10s
+      retries: 10
+
+networks:
+  app-network:
+    driver: bridge
+
+volumes:
+  uploads:
+  screenshots:
